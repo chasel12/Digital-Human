@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数字人探店视频生成器</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#0f0f1a;color:#e0e0e0;min-height:100vh}
+.header{background:linear-gradient(135deg,#1a1a2e,#16213e);padding:24px 32px;border-bottom:1px solid #2a2a4a}
+.header h1{font-size:24px;background:linear-gradient(90deg,#ff6b6b,#ffa500);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header p{color:#888;margin-top:4px;font-size:14px}
+.container{max-width:1100px;margin:0 auto;padding:24px}
+.tabs{display:flex;gap:4px;margin-bottom:24px}
+.tab-btn{padding:10px 24px;border:1px solid #2a2a4a;background:#1a1a2e;color:#aaa;border-radius:8px 8px 0 0;cursor:pointer;font-size:14px;transition:all .2s}
+.tab-btn.active{background:#252542;color:#fff;border-color:#4a4a8a}
+.tab-content{display:none;background:#1a1a2e;border:1px solid #2a2a4a;border-radius:0 12px 12px 12px;padding:24px}
+.tab-content.active{display:block}
+.step-flow{display:flex;align-items:center;gap:8px;margin-bottom:24px;flex-wrap:wrap}
+.step-dot{width:32px;height:32px;border-radius:50%;background:#2a2a4a;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;transition:all .3s}
+.step-dot.active{background:linear-gradient(135deg,#ff6b6b,#ffa500);color:#fff}
+.step-dot.done{background:#4caf50;color:#fff}
+.step-line{flex:1;height:2px;background:#2a2a4a;min-width:20px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;margin-bottom:6px;font-size:13px;color:#aaa}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:10px 12px;background:#252542;border:1px solid #3a3a5a;border-radius:8px;color:#e0e0e0;font-size:14px;outline:none;transition:border-color .2s}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{border-color:#6a6aff}
+.form-group textarea{resize:vertical;min-height:60px}
+.form-group input[type=file]{padding:8px}
+.row{display:flex;gap:16px}
+.row .form-group{flex:1}
+.btn{padding:10px 24px;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;transition:all .2s}
+.btn-primary{background:linear-gradient(135deg,#ff6b6b,#ff8e53);color:#fff}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 15px rgba(255,107,107,.3)}
+.btn-secondary{background:#2a2a4a;color:#ccc}
+.btn-secondary:hover{background:#3a3a5a}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+.status-bar{margin-top:8px;padding:8px 12px;border-radius:6px;font-size:13px;display:none}
+.status-bar.ok{display:block;background:rgba(76,175,80,.15);color:#4caf50;border:1px solid rgba(76,175,80,.3)}
+.status-bar.err{display:block;background:rgba(244,67,54,.15);color:#f44336;border:1px solid rgba(244,67,54,.3)}
+.status-bar.info{display:block;background:rgba(33,150,243,.15);color:#2196f3;border:1px solid rgba(33,150,243,.3)}
+.log-box{background:#0a0a15;border:1px solid #2a2a4a;border-radius:8px;padding:12px;font-family:"Cascadia Code",Consolas,monospace;font-size:12px;max-height:300px;overflow-y:auto;white-space:pre-wrap;color:#aaa;margin-top:16px}
+.log-box .log-ok{color:#4caf50}
+.log-box .log-err{color:#f44336}
+.log-box .log-info{color:#2196f3}
+.log-box .log-step{color:#ffa500;font-weight:700}
+.video-result{margin-top:16px;text-align:center}
+.video-result video{max-width:100%;border-radius:12px;border:1px solid #2a2a4a}
+.json-box{font-family:"Cascadia Code",Consolas,monospace;font-size:12px;min-height:100px}
+.divider{border:none;border-top:1px solid #2a2a4a;margin:20px 0}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid #444;border-top-color:#ff6b6b;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.section-title{font-size:16px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section-title .num{background:linear-gradient(135deg,#ff6b6b,#ffa500);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>数字人探店视频生成器</h1>
+<p>抖音链接或上传视频 | ASR | 风格分析 | AI文案 | 数字人视频</p>
+</div>
+<div class="container">
+<div class="tabs">
+<button class="tab-btn active" onclick="switchTab('full')">一键生成</button>
+<button class="tab-btn" onclick="switchTab('step')">分步操作</button>
+</div>
+
+<!-- 一键生成 -->
+<div class="tab-content active" id="tab-full">
+<div class="step-flow">
+<div class="step-dot" id="f-s1">1</div><div class="step-line"></div>
+<div class="step-dot" id="f-s2">2</div><div class="step-line"></div>
+<div class="step-dot" id="f-s3">3</div><div class="step-line"></div>
+<div class="step-dot" id="f-s4">4</div><div class="step-line"></div>
+<div class="step-dot" id="f-s5">5</div>
+</div>
+<div class="row">
+<div class="form-group" style="flex:2">
+<label>抖音分享链接 (与上传二选一)</label>
+<input type="text" id="f-url" placeholder="粘贴抖音分享文本或链接">
+</div>
+<div class="form-group" style="flex:1">
+<label>或上传视频文件</label>
+<input type="file" id="f-videofile" accept="video/*">
+</div>
+</div>
+<div class="row">
+<div class="form-group">
+<label>产品名称 *</label>
+<input type="text" id="f-product" placeholder="如: 芒果干">
+</div>
+<div class="form-group">
+<label>语音风格</label>
+<select id="f-voice"><option value="female_warm">女声-温暖</option><option value="female_lively">女声-活泼</option><option value="male_passion">男声-激情</option><option value="male_lively">男声-阳光</option><option value="male_pro">男声-专业</option><option value="male_cute">男声-可爱</option></select>
+</div>
+<div class="form-group">
+<label>目标时长(秒)</label>
+<input type="number" id="f-duration" value="60" min="15" max="120">
+</div>
+</div>
+<div class="form-group">
+<label>产品描述</label>
+<textarea id="f-desc" placeholder="描述产品卖点"></textarea>
+</div>
+<div class="form-group">
+<label>店铺描述 (选填)</label>
+<input type="text" id="f-store" placeholder="店铺名称/位置/特色">
+</div>
+<div class="row">
+<div class="form-group">
+<label>数字人头像 (选填)</label>
+<input type="file" id="f-avatar" accept="image/*">
+</div>
+<div class="form-group">
+<label>产品照片 (选填)</label>
+<input type="file" id="f-products" accept="image/*" multiple>
+</div>
+<div class="form-group">
+<label>店铺照片 (选填)</label>
+<input type="file" id="f-stores" accept="image/*" multiple>
+</div>
+</div>
+<button class="btn btn-primary" id="f-run" onclick="runFull()">一键生成</button>
+<div class="log-box" id="f-log" style="display:none"></div>
+<div class="video-result" id="f-video-box" style="display:none">
+<video id="f-video" controls></video>
+</div>
+</div>
+
+<!-- 分步操作 -->
+<div id="tab-step" class="tab-content">
+<!-- Step 1 -->
+<div class="section-title"><span class="num">1</span>下载/上传视频</div>
+<div class="row">
+<div class="form-group" style="flex:2">
+<label>抖音链接 (或直接上传下方视频)</label>
+<input type="text" id="s1-url" placeholder="粘贴抖音分享链接">
+</div>
+<div class="form-group" style="flex:1">
+<label>或上传视频文件</label>
+<input type="file" id="s1-videofile" accept="video/*">
+</div>
+</div>
+<div class="row">
+<div class="form-group"><button class="btn btn-primary" onclick="runStep1()">下载</button></div>
+<div class="form-group"><button class="btn btn-secondary" onclick="runStep1Upload()">上传</button></div>
+</div>
+<div id="s1-status" class="status-bar"></div>
+<div id="s1-video-box" style="margin-top:12px;display:none"><video id="s1-video" controls style="max-width:100%;border-radius:8px"></video></div>
+
+<hr class="divider">
+<!-- Step 2 -->
+<div class="section-title"><span class="num">2</span>ASR 语音识别</div>
+<div class="form-group">
+<input type="text" id="s2-path" placeholder="视频路径 (自动填入或手动输入)">
+</div>
+<button class="btn btn-primary" onclick="runStep2()">识别</button>
+<div id="s2-status" class="status-bar"></div>
+<div class="form-group" style="margin-top:8px">
+<label>口播文案</label>
+<textarea id="s2-text" rows="5" readonly></textarea>
+</div>
+
+<hr class="divider">
+<!-- Step 3 -->
+<div class="section-title"><span class="num">3</span>风格分析</div>
+<button class="btn btn-primary" onclick="runStep3()">分析</button>
+<div id="s3-status" class="status-bar"></div>
+<div class="form-group" style="margin-top:8px">
+<label>风格结果 (JSON)</label>
+<textarea id="s3-style" class="json-box" rows="6" readonly></textarea>
+</div>
+
+<hr class="divider">
+<!-- Step 4 -->
+<div class="section-title"><span class="num">4</span>生成推广文案</div>
+<div class="row">
+<div class="form-group"><label>产品名称 *</label><input type="text" id="s4-product"></div>
+<div class="form-group"><label>目标时长(秒)</label><input type="number" id="s4-duration" value="60"></div>
+</div>
+<div class="form-group"><label>产品描述</label><textarea id="s4-desc" rows="2"></textarea></div>
+<div class="form-group"><label>店铺描述 (选填)</label><input type="text" id="s4-store"></div>
+<button class="btn btn-primary" onclick="runStep4()">生成文案</button>
+<div id="s4-status" class="status-bar"></div>
+<div class="form-group" style="margin-top:8px">
+<label>文案结果 (JSON, 可手动编辑)</label>
+<textarea id="s4-script" class="json-box" rows="10"></textarea>
+</div>
+<div class="row">
+<div class="form-group"><label>修改意见</label><input type="text" id="s4-feedback" placeholder="对当前文案提修改要求"></div>
+<div style="display:flex;align-items:flex-end"><button class="btn btn-secondary" onclick="runStep4Refine()">调整文案</button></div>
+</div>
+
+<hr class="divider">
+<!-- Step 5 -->
+<div class="section-title"><span class="num">5</span>生成视频</div>
+<div class="row">
+<div class="form-group"><label>数字人头像 (选填)</label><input type="file" id="s5-avatar" accept="image/*"></div>
+<div class="form-group"><label>语音风格</label><select id="s5-voice"><option value="female_warm">女声-温暖</option><option value="female_lively">女声-活泼</option><option value="male_passion">男声-激情</option><option value="male_lively">男声-阳光</option><option value="male_pro">男声-专业</option><option value="male_cute">男声-可爱</option></select></div>
+</div>
+<div class="row">
+<div class="form-group"><label>产品照片</label><input type="file" id="s5-products" accept="image/*" multiple></div>
+<div class="form-group"><label>店铺照片</label><input type="file" id="s5-stores" accept="image/*" multiple></div>
+</div>
+<button class="btn btn-primary" onclick="runStep5()">生成视频</button>
+<div id="s5-status" class="status-bar"></div>
+<div class="video-result" id="s5-video-box" style="display:none">
+<video id="s5-video" controls></video>
+</div>
+</div>
+</div>
+
+<script>
+function $(id){return document.getElementById(id)}
+function showStatus(id,cls,msg){const e=$(id);e.className='status-bar '+cls;e.textContent=msg;e.style.display='block'}
+function hideStatus(id){const e=$(id);e.style.display='none'}
+
+function switchTab(tab){
+document.querySelectorAll('.tab-btn').forEach((b,i)=>{b.classList.toggle('active',i===(tab==='full'?0:1))});
+document.querySelectorAll('.tab-content').forEach((c,i)=>{c.classList.toggle('active',i===(tab==='full'?0:1))});
+}
+
+function setStepDots(prefix,step){
+for(let i=1;i<=5;i++){
+const d=$(prefix+'-s'+i);
+d.className='step-dot'+(i<step?' done':'')+(i===step?' active':'');
+}
+}
+
+function addLog(box,text,cls){
+box.style.display='block';
+box.innerHTML+=`<span class="${cls||''}">${text}</span>\n`;
+box.scrollTop=box.scrollHeight;
+}
+
+function setLoading(btn,loading){
+btn.disabled=loading;
+if(loading)btn.innerHTML='<span class="spinner"></span>处理中...';
+else btn.textContent=btn.dataset.orig||btn.textContent;
+}
+
+async function postForm(url,data){
+const resp=await fetch(url,{method:'POST',body:data});
+return resp.json();
+}
+
+// 一键生成
+async function runFull(){
+const btn=$('f-run');
+const log=$('f-log');
+log.innerHTML='';
+btn.dataset.orig='一键生成';
+setLoading(btn,true);
+setStepDots('f',1);
+
+const videoFile = $('f-videofile').files[0];
+const urlInput = $('f-url').value.trim();
+let videoPath = null;
+
+if (videoFile) {
+  addLog(log,'[1/5] 上传视频文件...','log-step');
+  const fd0 = new FormData();
+  fd0.append('video', videoFile);
+  const r0 = await postForm('/api/upload_video', fd0);
+  if(!r0.ok){addLog(log,'  上传失败: '+r0.error,'log-err');setLoading(btn,false);return}
+  videoPath = r0.video_path;
+  addLog(log,'  -> 上传完成: '+r0.name,'log-ok');
+} else if (urlInput) {
+  addLog(log,'[1/5] 下载抖音视频...','log-step');
+  const fd1=new FormData();fd1.append('douyin_url', urlInput);
+  const r1=await postForm('/api/download',fd1);
+  if(!r1.ok){addLog(log,'  下载失败: '+r1.error,'log-err');setLoading(btn,false);return}
+  videoPath = r1.video_path;
+  addLog(log,'  -> 下载完成: '+r1.name,'log-ok');
+} else {
+  addLog(log,'  请提供抖音链接或上传视频文件','log-err');
+  setLoading(btn,false);
+  return;
+}
+setStepDots('f',2);
+
+addLog(log,'[2/5] ASR 语音识别...','log-step');
+const fd2=new FormData();fd2.append('video_path', videoPath);
+const r2=await postForm('/api/asr',fd2);
+if(!r2.ok){addLog(log,'  识别失败: '+r2.error,'log-err');setLoading(btn,false);return}
+addLog(log,'  -> 识别完成, '+r2.transcript.length+' 字','log-ok');
+setStepDots('f',3);
+
+addLog(log,'[3/5] 风格分析...','log-step');
+const fd3=new FormData();fd3.append('transcript',r2.transcript);
+const r3=await postForm('/api/analyze',fd3);
+if(!r3.ok){addLog(log,'  分析失败: '+r3.error,'log-err');setLoading(btn,false);return}
+addLog(log,'  -> 风格: '+(r3.style.tone_style||'unknown'),'log-ok');
+setStepDots('f',4);
+
+addLog(log,'[4/5] 生成推广文案...','log-step');
+const fd4=new FormData();
+fd4.append('transcript',r2.transcript);
+fd4.append('style_json',JSON.stringify(r3.style));
+fd4.append('product_name',$('f-product').value);
+fd4.append('product_desc',$('f-desc').value);
+fd4.append('store_desc',$('f-store').value);
+fd4.append('duration',$('f-duration').value);
+const r4=await postForm('/api/generate_script',fd4);
+if(!r4.ok){addLog(log,'  生成失败: '+r4.error,'log-err');setLoading(btn,false);return}
+addLog(log,'  -> 标题: '+(r4.script.title||'N/A'),'log-ok');
+setStepDots('f',5);
+
+addLog(log,'[5/5] 合成视频...','log-step');
+const fd5=new FormData();
+fd5.append('script_json',JSON.stringify(r4.script));
+fd5.append('voice_key',$('f-voice').value);
+if($('f-avatar').files[0])fd5.append('avatar',$('f-avatar').files[0]);
+for(const f of $('f-products').files)fd5.append('product_images',f);
+for(const f of $('f-stores').files)fd5.append('store_images',f);
+const r5=await postForm('/api/generate_video',fd5);
+if(!r5.ok){addLog(log,'  生成失败: '+r5.error,'log-err');setLoading(btn,false);return}
+addLog(log,'  -> 视频生成完成!','log-ok');
+addLog(log,'[DONE] 全部完成!','log-ok');
+
+setStepDots('f',6);
+$('f-video').src='/api/video/'+r5.video_name;
+$('f-video-box').style.display='block';
+setLoading(btn,false);
+}
+
+// 分步
+async function runStep1(){
+const btn=event.target;btn.dataset.orig=btn.textContent;setLoading(btn,true);
+showStatus('s1-status','info','下载中...');
+const fd=new FormData();fd.append('douyin_url',$('s1-url').value);
+const r=await postForm('/api/download',fd);
+if(r.ok){showStatus('s1-status','ok','下载完成: '+r.name);$('s2-path').value=r.video_path;$('s1-video').src='/api/video/'+r.name;$('s1-video-box').style.display='block'}
+else showStatus('s1-status','err','失败: '+r.error);
+setLoading(btn,false);
+}
+
+async function runStep1Upload(){
+const btn=event.target;btn.dataset.orig=btn.textContent;setLoading(btn,true);
+const file=$('s1-videofile').files[0];
+if(!file){showStatus('s1-status','err','请选择视频文件');setLoading(btn,false);return}
+showStatus('s1-status','info','上传中...');
+const fd=new FormData();fd.append('video',file);
+const r=await postForm('/api/upload_video',fd);
+if(r.ok){showStatus('s1-status','ok','上传完成: '+r.name);$('s2-path').value=r.video_path;$('s1-video').src='/api/video/'+r.name;$('s1-video-box').style.display='block'}
+else showStatus('s1-status','err','失败: '+r.error);
+setLoading(btn,false);
+}
+
+async function runStep2(){
+const btn=event.target;btn.dataset.orig=btn.textContent;setLoading(btn,true);
+showStatus('s2-status','info','识别中...');
+const fd=new FormData();fd.append('video_path',$('s2-path').value);
+const r=await postForm('/api/asr',fd);
+if(r.ok){showStatus('s2-status','ok','识别完成, '+r.transcript.length+' 字');$('s2-text').value=r.transcript}
+else showStatus('s2-status','err','失败: '+r.error);
+setLoading(btn,false);
+}
+
+async function runStep3(){
+const btn=event.target;btn.dataset.orig=btn.textContent;setLoading(btn,true);
+showStatus('s3-status','info','分析中...');
+const fd=new FormData();fd.append('transcript',$('s2-text').value);
+const r=await postForm('/api/analyze',fd);
+if(r.ok){showStatus('s3-status','ok','风格分析完成');$('s3-style').value=JSON.stringify(r.style,null,2)}
+else showStatus('s3-status','err','失败: '+r.error);
+setLoading(btn,false);
+}
+
+async function runStep4(){
+const btn=event.target;btn.dataset.orig=btn.textContent;setLoading(btn,true);
+showStatus('s4-status','info','生成中...');
+const fd=new FormData();
+fd.append('transcript',$('s2-text').value);
+fd.append('style_json',$('s3-style').value);
+fd.append('product_name',$('s4-product').value);
+fd.append('product_desc',$('s4-desc').value);
+fd.append('store_desc',$('s4-store').value);
+fd.append('duration',$('s4-duration').value);
+const r=await postForm('/api/generate_script',fd);
+if(r.ok){showStatus('s4-status','ok','文案生成完成');$('s4-script').value=JSON.stringify(r.script,null,2)}
+else showStatus('s4-status','err','失败: '+r.error);
+setLoading(btn,false);
+}
+
+async function runStep4Refine(){
+const btn=event.target;btn.dataset.orig=btn.textContent;setLoading(btn,true);
+showStatus('s4-status','info','调整中...');
+const fd=new FormData();
+fd.append('script_json',$('s4-script').value);
+fd.append('feedback',$('s4-feedback').value);
+const r=await postForm('/api/refine_script',fd);
+if(r.ok){showStatus('s4-status','ok','文案调整完成');$('s4-script').value=JSON.stringify(r.script,null,2)}
+else showStatus('s4-status','err','失败: '+r.error);
+setLoading(btn,false);
+}
+
+async function runStep5(){
+const btn=event.target;btn.dataset.orig=btn.textContent;setLoading(btn,true);
+showStatus('s5-status','info','视频生成中 (可能需要几分钟)...');
+const fd=new FormData();
+fd.append('script_json',$('s4-script').value);
+fd.append('voice_key',$('s5-voice').value);
+if($('s5-avatar').files[0])fd.append('avatar',$('s5-avatar').files[0]);
+for(const f of $('s5-products').files)fd.append('product_images',f);
+for(const f of $('s5-stores').files)fd.append('store_images',f);
+const r=await postForm('/api/generate_video',fd);
+if(r.ok){showStatus('s5-status','ok','视频生成完成!');$('s5-video').src='/api/video/'+r.video_name;$('s5-video-box').style.display='block'}
+else showStatus('s5-status','err','失败: '+r.error);
+setLoading(btn,false);
+}
+</script>
+</body>
+</html>
